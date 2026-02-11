@@ -21,23 +21,27 @@
  * @returns {Object} - { distance: number, path: string[] } (distance=Infinity, path=[] if unreachable)
  */
 function calculateShortestPath(graph, start, end, routeCache = null) {
-  // Cache hit? (key format: 'start:end')
+  // Normalize key for undirected graphs (sort nodes) to improve hit ratio/cache size
+  // (e.g., 'locA:depot' == 'depot:locA')
+  const normalizeKey = (a, b) => [a, b].sort().join(':');
+
+  // Cache hit? (normalized key)
   if (routeCache) {
-    const cacheKey = `${start}:${end}`;
+    const cacheKey = normalizeKey(start, end);
     const cached = routeCache.get(cacheKey);
     if (cached) {
-      return cached; // Reuse {distance, path}
+      return cached; // Reuse {distance, path} - note: path direction may be reversed but valid
     }
   }
 
   if (start === end) {
     const result = { distance: 0, path: [start] };
-    if (routeCache) routeCache.set(`${start}:${end}`, result);
+    if (routeCache) routeCache.set(normalizeKey(start, end), result);
     return result;
   }
   if (!graph[start] || !graph[end]) {
     const result = { distance: Infinity, path: [] };
-    if (routeCache) routeCache.set(`${start}:${end}`, result);
+    if (routeCache) routeCache.set(normalizeKey(start, end), result);
     return result;
   }
 
@@ -90,7 +94,7 @@ function calculateShortestPath(graph, start, end, routeCache = null) {
     // Validate path starts at 'start'
     if (path[0] !== start) {
       const result = { distance: Infinity, path: [] };
-      if (routeCache) routeCache.set(`${start}:${end}`, result);
+      if (routeCache) routeCache.set(normalizeKey(start, end), result);
       return result;
     }
   } else {
@@ -98,7 +102,7 @@ function calculateShortestPath(graph, start, end, routeCache = null) {
     path = [];
   }
   const result = { distance, path };
-  if (routeCache) routeCache.set(`${start}:${end}`, result); // Cache for future hits
+  if (routeCache) routeCache.set(normalizeKey(start, end), result); // Cache for future hits (normalized)
   return result;
 }
 
