@@ -76,19 +76,32 @@ try {
 
 ## File Structure
 - `src/index.js` - Main entry point and optimizeDelivery function
-- `src/data/input.js` - Input loading and preparation
-- `src/utils/validator.js` - Input validation
+- `src/data/input.js` - Input loading and preparation (with deep cloning for immutability)
+- `src/utils/validator.js` - Strict input validation (throws consistent `InputValidationError`)
 - `src/utils/optimizer.js` - Basic assignment and route calculation
+- `tests/input-validation.test.js` - Unit tests for reliability and edge cases
+
+## Input Reliability Improvements
+- **Consistent error handling**: All validation now throws `InputValidationError` immediately (no error collection).
+- **No silent defaults for critical fields**: Driver `capacity` and order `destination` are strictly required (errors if missing/invalid). Graph structure rigorously validated.
+- **Immutability**: Inputs and outputs are deep-cloned to prevent mutation of original data.
+- **Graph validation**: Enforces connections, non-negative distances, and basic connectivity.
 
 ## Next Steps
 - Implement advanced routing algorithms (Dijkstra, etc.)
 - Add real-time optimization
 - Support for constraints like time windows, capacities
 - Visualization tools
-- Tests and benchmarks
+- Expand test coverage and benchmarks
 
 ## Development
 ```bash
+# Install deps (incl. Jest for tests)
+npm install
+
+# Run tests (covers invalid inputs, graph edges, immutability)
+npm test
+
 # Run example
 node src/index.js
 

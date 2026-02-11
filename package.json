@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "build": "echo \"No build step yet\"",
     "start": "node src/index.js"
   },
@@ -15,5 +15,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/route-optimisation-engine.git"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

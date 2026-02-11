@@ -7,9 +7,9 @@
  */
 
 // Import utilities
-const { loadDrivers, loadOrders, loadRoadGraph } = require('./data/input');
+const { loadDrivers, loadOrders, loadRoadGraph, deepClone } = require('./data/input');
 const { assignDriversToOrders, calculateRouteAndETA } = require('./utils/optimizer');
-const { validateInputs } = require('./utils/validator');
+const { validateInputs, InputValidationError } = require('./utils/validator');
 
 /**
  * Main function to optimize delivery routes.
@@ -21,15 +21,22 @@ const { validateInputs } = require('./utils/validator');
  * @returns {Object} - Optimized assignments with routes and ETAs
  */
 function optimizeDelivery(inputs) {
-  // Validate inputs
-  const validation = validateInputs(inputs);
-  if (!validation.valid) {
-    throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+  // Ensure immutability: deep clone original inputs to prevent any mutation
+  const immutableInputs = deepClone(inputs);
+
+  // Validate inputs (now throws consistently for errors; no return object)
+  try {
+    validateInputs(immutableInputs);
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      throw error; // rethrow for consistent handling
+    }
+    throw new Error(`Validation failed: ${error.message}`);
   }
 
-  const { drivers, orders, graph } = inputs;
+  const { drivers, orders, graph } = immutableInputs;
 
-  // Load and prepare data
+  // Load and prepare data (loaders also ensure cloned/immutable outputs)
   const preparedDrivers = loadDrivers(drivers);
   const preparedOrders = loadOrders(orders);
   const roadGraph = loadRoadGraph(graph);
@@ -73,9 +80,11 @@ module.exports = {
   assignDriversToOrders,
   calculateRouteAndETA,
   validateInputs,
+  InputValidationError,
   loadDrivers,
   loadOrders,
-  loadRoadGraph
+  loadRoadGraph,
+  deepClone
 };
 
 // For direct execution
