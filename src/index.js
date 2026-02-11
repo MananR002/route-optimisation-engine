@@ -8,7 +8,7 @@
 
 // Import utilities
 const { loadDrivers, loadOrders, loadRoadGraph, deepClone } = require('./data/input');
-const { assignDriversToOrders, calculateRouteAndETA } = require('./utils/optimizer');
+const { assignDriversToOrders, calculateRouteAndETA, calculateShortestPath } = require('./utils/optimizer');
 const { validateInputs, InputValidationError } = require('./utils/validator');
 
 /**
@@ -84,7 +84,9 @@ module.exports = {
   loadDrivers,
   loadOrders,
   loadRoadGraph,
-  deepClone
+  deepClone,
+  // For advanced use: full path calc
+  calculateShortestPath
 };
 
 // For direct execution (small working demo for phase 1 greedy)
@@ -116,6 +118,7 @@ if (require.main === module) {
       order: a.order.id,
       score: a.assignmentScore.toFixed(2),
       distance: a.distance,
+      route: a.route,  // full path now
       eta: a.eta
     })), null, 2));
     console.log('Summary:', result.summary);

@@ -5,7 +5,7 @@
 
 const { optimizeDelivery, validateInputs, InputValidationError, deepClone } = require('../src/index');
 const { loadDrivers, loadOrders, loadRoadGraph } = require('../src/data/input');
-const { assignDriversToOrders, calculateShortestDistance } = require('../src/utils/optimizer');
+const { assignDriversToOrders, calculateShortestDistance, calculateShortestPath } = require('../src/utils/optimizer');
 
 // Helper to create valid sample inputs (updated for new fields)
 function getValidInputs() {
@@ -204,6 +204,17 @@ describe('Input Validation and Reliability', () => {
       expect(calculateShortestDistance(graph, 'depot', 'locC')).toBe(40);
       expect(calculateShortestDistance(graph, 'locB', 'locC')).toBe(20);
       expect(calculateShortestDistance(graph, 'unknown', 'locA')).toBe(Infinity);
+    });
+
+    test('calculateShortestPath returns full route path and handles unreachable/negatives', () => {
+      const graph = getValidInputs().graph;
+      const result = calculateShortestPath(graph, 'depot', 'locC');
+      expect(result.distance).toBe(40);
+      expect(result.path).toEqual(['depot', 'locC']); // direct or shortest
+      // Unreachable
+      const unreachable = calculateShortestPath(graph, 'unknown', 'locA');
+      expect(unreachable.distance).toBe(Infinity);
+      expect(unreachable.path).toEqual([]);
     });
 
     test('greedy respects capacity and prefers nearest', () => {

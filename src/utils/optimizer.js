@@ -9,24 +9,33 @@
  */
 
 /**
- * Helper: Compute shortest path distance between start and end using Dijkstra on graph.
- * Assumes non-negative weights; returns Infinity if unreachable.
+ * Helper: Compute shortest path (distance + full route path) using Dijkstra on graph.
+ * Assumes non-negative weights; handles unreachable explicitly.
+ * Path reconstruction via predecessor tracking.
  * @param {Object} graph - Adjacency list
  * @param {string} start - Start node
  * @param {string} end - End node
- * @returns {number} - Shortest distance or Infinity
+ * @returns {Object} - { distance: number, path: string[] } (distance=Infinity, path=[] if unreachable)
  */
-function calculateShortestDistance(graph, start, end) {
-  if (start === end) return 0;
-  if (!graph[start] || !graph[end]) return Infinity;
+function calculateShortestPath(graph, start, end) {
+  if (start === end) {
+    return { distance: 0, path: [start] };
+  }
+  if (!graph[start] || !graph[end]) {
+    return { distance: Infinity, path: [] };
+  }
 
-  // Dijkstra's algorithm (simple priority queue impl for small graphs)
+  // Dijkstra with prev tracking for path reconstruction
   const distances = {};
+  const previous = {};
   const visited = new Set();
-  Object.keys(graph).forEach(node => { distances[node] = Infinity; });
+  Object.keys(graph).forEach(node => { 
+    distances[node] = Infinity; 
+    previous[node] = null;
+  });
   distances[start] = 0;
 
-  // Simple loop-based Dijkstra (no heap for brevity)
+  // Simple loop-based Dijkstra (no heap for small graphs)
   for (let i = 0; i < Object.keys(graph).length; i++) {
     // Find unvisited node with smallest distance
     let minDist = Infinity;
@@ -47,12 +56,37 @@ function calculateShortestDistance(graph, start, end) {
           const newDist = minDist + weight;
           if (newDist < distances[neighbor]) {
             distances[neighbor] = newDist;
+            previous[neighbor] = current;
           }
         }
       });
     }
   }
-  return distances[end] !== Infinity ? distances[end] : Infinity; // fallback if needed
+
+  // Reconstruct path if reachable
+  let distance = distances[end];
+  let path = [];
+  if (distance !== Infinity) {
+    let current = end;
+    while (current !== null) {
+      path.unshift(current);
+      current = previous[current];
+    }
+    // Validate path starts at 'start'
+    if (path[0] !== start) {
+      return { distance: Infinity, path: [] };
+    }
+  } else {
+    distance = Infinity;
+    path = [];
+  }
+  return { distance, path };
+}
+
+// Backward compat wrapper (returns just distance for existing calls)
+function calculateShortestDistance(graph, start, end) {
+  const result = calculateShortestPath(graph, start, end);
+  return result.distance;
 }
 
 /**
@@ -80,12 +114,15 @@ function assignDriversToOrders(drivers, orders, graph) {
 
       const start = driver.currentLocation || 'depot';
       const end = order.destination;
-      const distance = calculateShortestDistance(graph, start, end);
+      const pathResult = calculateShortestPath(graph, start, end);
+      const distance = pathResult.distance;
 
       if (distance < bestDistance) {
         bestDistance = distance;
         bestDriver = driver;
         bestIndex = i;
+        // Store full path for this best candidate (for assignment)
+        bestDriver._tempPath = pathResult.path; // temp for selection
       }
     }
 
@@ -99,42 +136,52 @@ function assignDriversToOrders(drivers, orders, graph) {
         driver: bestDriver,
         order: order,
         assignmentScore,
-        distance: bestDistance
+        distance: bestDistance,
+        route: bestDriver._tempPath || [bestDriver.currentLocation || 'depot', order.destination] // full path
       });
 
       // Mark unavailable and reduce capacity (for multi-order sim)
       bestDriver.availability = false;
       bestDriver.capacity -= (order.size || 0); // respect capacity
+      delete bestDriver._tempPath; // cleanup
     }
-    // Else: no suitable driver for this order (skip for phase 1)
+    // Else: no suitable driver (skip; unreachable handled by Infinity)
   }
 
   return assignments;
 }
 
 /**
- * Calculate fastest route and ETA using the graph (now uses real shortest path).
+ * Calculate fastest route and ETA using the graph (now uses full shortest path + reconstruction).
+ * Explicitly handles unreachable routes (distance=0, route=[], isUnreachable flag).
  * @param {Object} driver - Driver object
  * @param {Object} order - Order object
  * @param {Object} graph - Road network graph
- * @returns {Object} - { route: Array, distance: number, eta: number }
+ * @returns {Object} - { route: Array, distance: number, eta: number, isUnreachable?: boolean }
  */
 function calculateRouteAndETA(driver, order, graph) {
   const start = driver.currentLocation || 'depot';
   const end = order.destination;
   
-  // Use real shortest distance (reuses phase 1 helper)
-  const distance = calculateShortestDistance(graph, start, end);
+  // Use full path result (reuses enhanced Dijkstra)
+  const pathResult = calculateShortestPath(graph, start, end);
+  const distance = pathResult.distance;
   const speedKmh = 30; // average speed assumption
   const etaMinutes = distance !== Infinity ? Math.round((distance / speedKmh) * 60) : 0;
   
-  // Simple route (start -> end; can expand to full path later)
-  const route = distance !== Infinity ? [start, end] : [];
+  // Full reconstructed route path from Dijkstra
+  const route = pathResult.path.length > 0 ? pathResult.path : [];
+  const isUnreachable = distance === Infinity;
+  
+  if (isUnreachable) {
+    console.warn(`Warning: No route from ${start} to ${end} (unreachable in graph)`);
+  }
   
   return {
     route,
     distance: distance !== Infinity ? distance : 0,
     eta: etaMinutes,
+    isUnreachable,
     estimatedArrival: new Date(Date.now() + etaMinutes * 60 * 1000).toISOString()
   };
 }
@@ -142,5 +189,6 @@ function calculateRouteAndETA(driver, order, graph) {
 module.exports = {
   assignDriversToOrders,
   calculateRouteAndETA,
-  calculateShortestDistance // export for testing
+  calculateShortestDistance, // export for testing (compat)
+  calculateShortestPath // full path version
 };
