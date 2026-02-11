@@ -5,7 +5,7 @@ A Node.js utility library that helps optimize delivery planning. It takes driver
 ## Features
 - Accepts JSON input for drivers (incl. shiftEndTime), orders (incl. deadlineTime), and road network graph
 - Phase 1: Distance-aware greedy assignment (nearest driver by shortest path, capacity-aware, score based on dist+prio)
-- Real shortest-path distance/ETA calc (Dijkstra-based)
+- Optimized Dijkstra (MinHeap PQ: O((V+E) log V)) with full path reconstruction + unreachable handling
 - Strict input validation + immutability
 - Unit tests + working demo
 

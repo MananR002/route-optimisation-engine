@@ -10,6 +10,7 @@
 
 /**
  * Helper: Compute shortest path (distance + full route path) using Dijkstra on graph.
+ * Uses MinHeap PQ for O((V + E) log V) performance (improved from O(V^2) loop search).
  * Assumes non-negative weights; handles unreachable explicitly.
  * Path reconstruction via predecessor tracking.
  * @param {Object} graph - Adjacency list
@@ -25,7 +26,10 @@ function calculateShortestPath(graph, start, end) {
     return { distance: Infinity, path: [] };
   }
 
-  // Dijkstra with prev tracking for path reconstruction
+  const MinHeap = require('./minHeap'); // Lazy import for clean structure
+  const heap = new MinHeap();
+
+  // Dijkstra with prev tracking + MinHeap PQ
   const distances = {};
   const previous = {};
   const visited = new Set();
@@ -34,30 +38,26 @@ function calculateShortestPath(graph, start, end) {
     previous[node] = null;
   });
   distances[start] = 0;
+  heap.insert(start, 0); // Start with priority=dist
 
-  // Simple loop-based Dijkstra (no heap for small graphs)
-  for (let i = 0; i < Object.keys(graph).length; i++) {
-    // Find unvisited node with smallest distance
-    let minDist = Infinity;
-    let current = null;
-    Object.keys(distances).forEach(node => {
-      if (!visited.has(node) && distances[node] < minDist) {
-        minDist = distances[node];
-        current = node;
-      }
-    });
-    if (current === null || minDist === Infinity) break;
+  while (!heap.isEmpty()) {
+    const minItem = heap.extractMin();
+    const current = minItem.node;
+    const currentDist = minItem.priority;
+    
+    // Skip outdated entries (from re-inserts/decreaseKey)
+    if (visited.has(current) || currentDist > distances[current]) continue;
     visited.add(current);
 
-    // Update neighbors
+    // Update neighbors via edges
     if (graph[current]) {
       Object.entries(graph[current]).forEach(([neighbor, weight]) => {
-        if (!visited.has(neighbor)) {
-          const newDist = minDist + weight;
-          if (newDist < distances[neighbor]) {
-            distances[neighbor] = newDist;
-            previous[neighbor] = current;
-          }
+        if (visited.has(neighbor)) return;
+        const newDist = currentDist + weight;
+        if (newDist < distances[neighbor]) {
+          distances[neighbor] = newDist;
+          previous[neighbor] = current;
+          heap.decreaseKey(neighbor, newDist); // Re-insert or update
         }
       });
     }

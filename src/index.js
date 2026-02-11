@@ -85,8 +85,9 @@ module.exports = {
   loadOrders,
   loadRoadGraph,
   deepClone,
-  // For advanced use: full path calc
-  calculateShortestPath
+  // For advanced use: full path calc + MinHeap utility
+  calculateShortestPath,
+  MinHeap: require('./utils/minHeap')
 };
 
 // For direct execution (small working demo for phase 1 greedy)
