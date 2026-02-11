@@ -102,12 +102,12 @@ if (require.main === module) {
   // Sample input with new fields
   const sampleInputs = {
     drivers: [
-      { id: 'd1', name: 'Alice', currentLocation: 'depot', capacity: 100, shiftEndTime: '2024-12-31T18:00:00Z' },
-      { id: 'd2', name: 'Bob', currentLocation: 'locB', capacity: 50, shiftEndTime: '2024-12-31T17:00:00Z' }
+      { id: 'd1', name: 'Alice', currentLocation: 'depot', capacity: 100, shiftEndTime: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString() },
+      { id: 'd2', name: 'Bob', currentLocation: 'locB', capacity: 50, shiftEndTime: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() }
     ],
     orders: [
-      { id: 'o1', destination: 'locA', priority: 1, size: 20, deadlineTime: '2024-12-31T16:00:00Z' },
-      { id: 'o2', destination: 'locC', priority: 2, size: 30, deadlineTime: '2024-12-31T15:00:00Z' }
+      { id: 'o1', destination: 'locA', priority: 1, size: 20, deadlineTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString() },
+      { id: 'o2', destination: 'locC', priority: 2, size: 30, deadlineTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() }
     ],
     graph: {
       depot: { locA: 10, locB: 25, locC: 40 },

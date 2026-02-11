@@ -7,6 +7,8 @@ A Node.js utility library that helps optimize delivery planning. It takes driver
 - Phase 1: Distance-aware greedy assignment (nearest driver by shortest path, capacity-aware, score based on dist+prio)
 - Optimized Dijkstra (MinHeap PQ: O((V+E) log V)) with full path reconstruction + unreachable handling
 - Optional route caching (via config.useCache) for repeated paths
+- Real-world constraints: shiftEndTime (ETA check), full capacity load enforcement
+- Updated greedy scoring (dist + ETA + priority/time factors)
 - Strict input validation + immutability
 - Unit tests + working demo
 

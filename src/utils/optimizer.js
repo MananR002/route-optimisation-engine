@@ -125,51 +125,76 @@ function assignDriversToOrders(drivers, orders, graph, routeCache = null) {
   const availableDrivers = [...drivers].map(d => ({ ...d })); // shallow clone drivers
   const assignments = [];
 
-  // Process orders in input order (can sort by priority in future)
-  for (const order of orders) {
-    let bestDriver = null;
-    let bestDistance = Infinity;
-    let bestIndex = -1;
+  // Process orders (sorted by priority for better real-world greedy; descending)
+  const sortedOrders = [...orders].sort((a, b) => (b.priority || 1) - (a.priority || 1));
 
-    // Find nearest available driver that fits capacity
+  for (const order of sortedOrders) {
+    let bestDriver = null;
+    let bestScore = Infinity;
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+    let bestETA = 0;
+
+    // Find best available driver respecting capacity, shiftEndTime, via distance/ETA
     for (let i = 0; i < availableDrivers.length; i++) {
       const driver = availableDrivers[i];
-      if (!driver.availability || driver.capacity < (order.size || 0)) continue;
+      if (!driver.availability) continue;
+
+      // Capacity check: cumulative assignedLoad + order.size <= capacity
+      const currentLoad = driver.assignedLoad || 0;
+      if (currentLoad + (order.size || 0) > driver.capacity) continue;
 
       const start = driver.currentLocation || 'depot';
       const end = order.destination;
       const pathResult = calculateShortestPath(graph, start, end, routeCache);
       const distance = pathResult.distance;
+      if (distance === Infinity) continue;
 
-      if (distance < bestDistance) {
+      // Compute ETA to check shiftEndTime constraint
+      const etaMinutes = Math.round((distance / 30) * 60); // consistent speed
+      const estimatedArrival = new Date(Date.now() + etaMinutes * 60 * 1000);
+      const shiftEnd = driver.shiftEndTime ? new Date(driver.shiftEndTime) : null;
+      if (shiftEnd && estimatedArrival > shiftEnd) continue; // cannot assign if exceeds shift
+
+      // Updated scoring: distance + etaFactor + timeWindowPenalty - priorityBonus (lower better)
+      // (balances dist, time, capacity/time windows)
+      const priority = order.priority || 1;
+      const etaFactor = etaMinutes / 10; // penalize long ETAs
+      const timePenalty = shiftEnd ? (shiftEnd - estimatedArrival) / (1000 * 60 * 10) : 0; // bonus for buffer
+      const assignmentScore = distance + etaFactor - (priority * 5) - timePenalty;
+
+      if (assignmentScore < bestScore) {
+        bestScore = assignmentScore;
         bestDistance = distance;
+        bestETA = etaMinutes;
         bestDriver = driver;
         bestIndex = i;
-        // Store full path for this best candidate (for assignment)
-        bestDriver._tempPath = pathResult.path; // temp for selection
+        // Store full path/ETA for assignment
+        bestDriver._tempPath = pathResult.path;
+        bestDriver._tempETA = bestETA;
       }
     }
 
-    if (bestDriver && bestDistance !== Infinity) {
+    if (bestDriver) {
       // Assign
-      const priority = order.priority || 1;
-      // Score: distance + (10 / priority) - lower better (favors short dist + high prio)
-      const assignmentScore = bestDistance + (10 / priority);
-
       assignments.push({
         driver: bestDriver,
         order: order,
-        assignmentScore,
+        assignmentScore: bestScore,
         distance: bestDistance,
-        route: bestDriver._tempPath || [bestDriver.currentLocation || 'depot', order.destination] // full path
+        route: bestDriver._tempPath || [bestDriver.currentLocation || 'depot', order.destination],
+        eta: bestDriver._tempETA || 0
       });
 
-      // Mark unavailable and reduce capacity (for multi-order sim)
-      bestDriver.availability = false;
-      bestDriver.capacity -= (order.size || 0); // respect capacity
-      delete bestDriver._tempPath; // cleanup
+      // Update driver state: mark unavailable if shift tight, reduce capacity/load
+      bestDriver.assignedLoad = (bestDriver.assignedLoad || 0) + (order.size || 0);
+      if (bestDriver.assignedLoad >= bestDriver.capacity || !bestDriver.shiftEndTime) {
+        bestDriver.availability = false; // fully utilized
+      }
+      delete bestDriver._tempPath;
+      delete bestDriver._tempETA;
     }
-    // Else: no suitable driver (skip; unreachable handled by Infinity)
+    // Else: no feasible driver for order (constraints violated)
   }
 
   return assignments;
