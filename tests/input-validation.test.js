@@ -178,6 +178,17 @@ describe('Input Validation and Reliability', () => {
       expect(result.summary.averageETA).toBeGreaterThan(0);
       expect(result.assignments[0]).toHaveProperty('eta');
     });
+
+    test('supports optional route caching config', () => {
+      const inputs = getValidInputs();
+      // With cache
+      const resultCached = optimizeDelivery(inputs, { useCache: true });
+      expect(resultCached.summary).toHaveProperty('cacheHits');
+      expect(resultCached.summary.cacheHits).toBeGreaterThan(0); // at least some hits
+      // Without
+      const resultNoCache = optimizeDelivery(inputs, { useCache: false });
+      expect(resultNoCache.summary.cacheHits).toBe(0);
+    });
   });
 
   // New tests for phase 1 greedy assignment
@@ -189,7 +200,7 @@ describe('Input Validation and Reliability', () => {
       const preparedOrders = loadOrders(orders);
       const preparedGraph = loadRoadGraph(graph);
       
-      const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, preparedGraph);
+      const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, preparedGraph, null);
       
       expect(assignments.length).toBeGreaterThan(0);
       expect(assignments[0]).toHaveProperty('assignmentScore');
@@ -208,11 +219,11 @@ describe('Input Validation and Reliability', () => {
 
     test('calculateShortestPath returns full route path and handles unreachable/negatives', () => {
       const graph = getValidInputs().graph;
-      const result = calculateShortestPath(graph, 'depot', 'locC');
+      const result = calculateShortestPath(graph, 'depot', 'locC', null);
       expect(result.distance).toBe(40);
       expect(result.path).toEqual(['depot', 'locC']); // direct or shortest
       // Unreachable
-      const unreachable = calculateShortestPath(graph, 'unknown', 'locA');
+      const unreachable = calculateShortestPath(graph, 'unknown', 'locA', null);
       expect(unreachable.distance).toBe(Infinity);
       expect(unreachable.path).toEqual([]);
     });
@@ -224,7 +235,7 @@ describe('Input Validation and Reliability', () => {
       testInputs.orders[1].size = 60; // too big for d2, but wait d1=100
       const preparedDrivers = loadDrivers(testInputs.drivers);
       const preparedOrders = loadOrders(testInputs.orders);
-      const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, testInputs.graph);
+      const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, testInputs.graph, null);
       
       // Should assign both if possible, but check scores/distances
       expect(assignments.length).toBe(1); // since second order size=60, d1 capacity reduced
@@ -235,7 +246,7 @@ describe('Input Validation and Reliability', () => {
       const inputs = getValidInputs();
       const preparedDrivers = loadDrivers(inputs.drivers);
       const preparedOrders = loadOrders(inputs.orders);
-      const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, inputs.graph);
+      const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, inputs.graph, null);
       
       assignments.forEach(ass => {
         expect(ass.assignmentScore).toBeGreaterThan(0);

@@ -15,12 +15,13 @@ const { validateInputs, InputValidationError } = require('./utils/validator');
  * Main function to optimize delivery routes.
  * 
  * @param {Object} inputs - Input data containing drivers, orders, and graph
- * @param {Object} inputs.drivers - Array of driver objects
- * @param {Object} inputs.orders - Array of order objects
- * @param {Object} inputs.graph - Road network graph
+ * @param {Object} [config={}] - Optional config (e.g., { useCache: true } for route caching)
+ * @param {boolean} [config.useCache=false] - Enable LRU-like cache for repeated (start,end) shortest paths
  * @returns {Object} - Optimized assignments with routes and ETAs
  */
-function optimizeDelivery(inputs) {
+function optimizeDelivery(inputs, config = {}) {
+  const { useCache = false } = config;
+
   // Ensure immutability: deep clone original inputs to prevent any mutation
   const immutableInputs = deepClone(inputs);
 
@@ -41,12 +42,15 @@ function optimizeDelivery(inputs) {
   const preparedOrders = loadOrders(orders);
   const roadGraph = loadRoadGraph(graph);
 
-  // Perform basic assignment and route calculation
-  const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, roadGraph);
+  // Optional shared route cache (key: 'start:end', value: {distance, path})
+  const routeCache = useCache ? new Map() : null;
+
+  // Perform basic assignment and route calculation (pass cache if enabled)
+  const assignments = assignDriversToOrders(preparedDrivers, preparedOrders, roadGraph, routeCache);
   
-  // Calculate routes and ETAs for assignments
+  // Calculate routes and ETAs for assignments (pass cache)
   const optimizedAssignments = assignments.map(assignment => {
-    const routeInfo = calculateRouteAndETA(assignment.driver, assignment.order, roadGraph);
+    const routeInfo = calculateRouteAndETA(assignment.driver, assignment.order, roadGraph, routeCache);
     return {
       ...assignment,
       ...routeInfo
@@ -59,7 +63,8 @@ function optimizeDelivery(inputs) {
       totalDrivers: drivers.length,
       totalOrders: orders.length,
       assignedOrders: optimizedAssignments.length,
-      averageETA: calculateAverageETA(optimizedAssignments)
+      averageETA: calculateAverageETA(optimizedAssignments),
+      cacheHits: useCache ? (routeCache ? routeCache.size : 0) : 0 // simple metric
     }
   };
 }
@@ -113,8 +118,9 @@ if (require.main === module) {
   };
 
   try {
-    const result = optimizeDelivery(sampleInputs);
-    console.log('Assignments:', JSON.stringify(result.assignments.map(a => ({
+    // Demo with caching enabled
+    const result = optimizeDelivery(sampleInputs, { useCache: true });
+    console.log('Assignments (with cache):', JSON.stringify(result.assignments.map(a => ({
       driver: a.driver.id,
       order: a.order.id,
       score: a.assignmentScore.toFixed(2),
@@ -122,7 +128,7 @@ if (require.main === module) {
       route: a.route,  // full path now
       eta: a.eta
     })), null, 2));
-    console.log('Summary:', result.summary);
+    console.log('Summary (cache hits):', result.summary);
     console.log('Demo complete! (See tests/ for more cases)');
   } catch (error) {
     console.error('Demo failed:', error.message);

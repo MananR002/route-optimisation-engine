@@ -10,20 +10,35 @@
 
 /**
  * Helper: Compute shortest path (distance + full route path) using Dijkstra on graph.
- * Uses MinHeap PQ for O((V + E) log V) performance (improved from O(V^2) loop search).
+ * Supports optional routeCache (Map) for hits on repeated (start,end) pairs.
+ * Uses MinHeap PQ for O((V + E) log V) performance.
  * Assumes non-negative weights; handles unreachable explicitly.
  * Path reconstruction via predecessor tracking.
  * @param {Object} graph - Adjacency list
  * @param {string} start - Start node
  * @param {string} end - End node
+ * @param {Map|null} [routeCache=null] - Optional cache: key='start:end', value={distance, path}
  * @returns {Object} - { distance: number, path: string[] } (distance=Infinity, path=[] if unreachable)
  */
-function calculateShortestPath(graph, start, end) {
+function calculateShortestPath(graph, start, end, routeCache = null) {
+  // Cache hit? (key format: 'start:end')
+  if (routeCache) {
+    const cacheKey = `${start}:${end}`;
+    const cached = routeCache.get(cacheKey);
+    if (cached) {
+      return cached; // Reuse {distance, path}
+    }
+  }
+
   if (start === end) {
-    return { distance: 0, path: [start] };
+    const result = { distance: 0, path: [start] };
+    if (routeCache) routeCache.set(`${start}:${end}`, result);
+    return result;
   }
   if (!graph[start] || !graph[end]) {
-    return { distance: Infinity, path: [] };
+    const result = { distance: Infinity, path: [] };
+    if (routeCache) routeCache.set(`${start}:${end}`, result);
+    return result;
   }
 
   const MinHeap = require('./minHeap'); // Lazy import for clean structure
@@ -74,16 +89,20 @@ function calculateShortestPath(graph, start, end) {
     }
     // Validate path starts at 'start'
     if (path[0] !== start) {
-      return { distance: Infinity, path: [] };
+      const result = { distance: Infinity, path: [] };
+      if (routeCache) routeCache.set(`${start}:${end}`, result);
+      return result;
     }
   } else {
     distance = Infinity;
     path = [];
   }
-  return { distance, path };
+  const result = { distance, path };
+  if (routeCache) routeCache.set(`${start}:${end}`, result); // Cache for future hits
+  return result;
 }
 
-// Backward compat wrapper (returns just distance for existing calls)
+// Backward compat wrapper (returns just distance for existing calls; no cache)
 function calculateShortestDistance(graph, start, end) {
   const result = calculateShortestPath(graph, start, end);
   return result.distance;
@@ -94,9 +113,10 @@ function calculateShortestDistance(graph, start, end) {
  * @param {Array} drivers - Prepared drivers (mutable for availability marking)
  * @param {Array} orders - Prepared orders
  * @param {Object} graph - Road network graph
+ * @param {Map|null} [routeCache=null] - Optional shared cache for paths
  * @returns {Array} - Assignments [{driver, order, assignmentScore, distance}]
  */
-function assignDriversToOrders(drivers, orders, graph) {
+function assignDriversToOrders(drivers, orders, graph, routeCache = null) {
   // Work on copy to avoid mutating input (immutability)
   const availableDrivers = [...drivers].map(d => ({ ...d })); // shallow clone drivers
   const assignments = [];
@@ -114,7 +134,7 @@ function assignDriversToOrders(drivers, orders, graph) {
 
       const start = driver.currentLocation || 'depot';
       const end = order.destination;
-      const pathResult = calculateShortestPath(graph, start, end);
+      const pathResult = calculateShortestPath(graph, start, end, routeCache);
       const distance = pathResult.distance;
 
       if (distance < bestDistance) {
@@ -153,18 +173,20 @@ function assignDriversToOrders(drivers, orders, graph) {
 
 /**
  * Calculate fastest route and ETA using the graph (now uses full shortest path + reconstruction).
+ * Supports optional routeCache.
  * Explicitly handles unreachable routes (distance=0, route=[], isUnreachable flag).
  * @param {Object} driver - Driver object
  * @param {Object} order - Order object
  * @param {Object} graph - Road network graph
+ * @param {Map|null} [routeCache=null] - Optional shared cache
  * @returns {Object} - { route: Array, distance: number, eta: number, isUnreachable?: boolean }
  */
-function calculateRouteAndETA(driver, order, graph) {
+function calculateRouteAndETA(driver, order, graph, routeCache = null) {
   const start = driver.currentLocation || 'depot';
   const end = order.destination;
   
-  // Use full path result (reuses enhanced Dijkstra)
-  const pathResult = calculateShortestPath(graph, start, end);
+  // Use full path result (reuses enhanced Dijkstra; cache if provided)
+  const pathResult = calculateShortestPath(graph, start, end, routeCache);
   const distance = pathResult.distance;
   const speedKmh = 30; // average speed assumption
   const etaMinutes = distance !== Infinity ? Math.round((distance / speedKmh) * 60) : 0;
