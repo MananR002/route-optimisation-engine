@@ -41,6 +41,13 @@ function validateInputs(inputs) {
     if (typeof driver.capacity !== 'number' || driver.capacity <= 0) {
       throw new InputValidationError(`Driver at index ${index} must have positive numeric capacity`);
     }
+    // New field: shiftEndTime optional, but if present must be ISO string or timestamp
+    if (driver.shiftEndTime !== undefined) {
+      const endTime = new Date(driver.shiftEndTime);
+      if (isNaN(endTime.getTime())) {
+        throw new InputValidationError(`Driver at index ${index} shiftEndTime must be valid date string/timestamp`);
+      }
+    }
   });
 
   // Validate orders (destination strictly required - critical, no defaults)
@@ -58,6 +65,13 @@ function validateInputs(inputs) {
     // Critical field: destination required (no silent default)
     if (typeof order.destination !== 'string' || !order.destination.trim()) {
       throw new InputValidationError(`Order at index ${index} must have a non-empty string destination`);
+    }
+    // New field: deadlineTime optional, but if present must be valid date
+    if (order.deadlineTime !== undefined) {
+      const deadline = new Date(order.deadlineTime);
+      if (isNaN(deadline.getTime())) {
+        throw new InputValidationError(`Order at index ${index} deadlineTime must be valid date string/timestamp`);
+      }
     }
   });
 

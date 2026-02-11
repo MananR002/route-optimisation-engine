@@ -32,7 +32,9 @@ function loadDrivers(drivers) {
     currentLocation: driver.currentLocation || 'depot',
     // capacity: NO default - strictly required and validated upstream
     availability: driver.availability !== undefined ? driver.availability : true,
-    ...driver // spread after to preserve original values
+    // New field: shiftEndTime (optional, passed through; validated upstream if present)
+    shiftEndTime: driver.shiftEndTime,
+    ...driver // spread after to preserve original values (including shiftEndTime)
   }));
 }
 
@@ -56,7 +58,9 @@ function loadOrders(orders) {
     priority: order.priority || 1,
     size: order.size || 10, // e.g., package size (non-critical)
     deadline: order.deadline || null,
-    ...order // spread after to preserve original values
+    // New field: deadlineTime (optional, passed through; validated upstream if present)
+    deadlineTime: order.deadlineTime,
+    ...order // spread after to preserve original values (including deadlineTime)
   }));
 }
 

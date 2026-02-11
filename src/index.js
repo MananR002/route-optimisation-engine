@@ -87,8 +87,40 @@ module.exports = {
   deepClone
 };
 
-// For direct execution
+// For direct execution (small working demo for phase 1 greedy)
 if (require.main === module) {
-  console.log('Route Optimisation Engine - Run with sample data or import as module');
-  // Example usage can be added here later
+  console.log('=== Route Optimisation Engine Demo (Phase 1: Greedy Assignment) ===');
+  
+  // Sample input with new fields
+  const sampleInputs = {
+    drivers: [
+      { id: 'd1', name: 'Alice', currentLocation: 'depot', capacity: 100, shiftEndTime: '2024-12-31T18:00:00Z' },
+      { id: 'd2', name: 'Bob', currentLocation: 'locB', capacity: 50, shiftEndTime: '2024-12-31T17:00:00Z' }
+    ],
+    orders: [
+      { id: 'o1', destination: 'locA', priority: 1, size: 20, deadlineTime: '2024-12-31T16:00:00Z' },
+      { id: 'o2', destination: 'locC', priority: 2, size: 30, deadlineTime: '2024-12-31T15:00:00Z' }
+    ],
+    graph: {
+      depot: { locA: 10, locB: 25, locC: 40 },
+      locA: { depot: 10, locB: 15, locC: 30 },
+      locB: { depot: 25, locA: 15, locC: 20 },
+      locC: { depot: 40, locA: 30, locB: 20 }
+    }
+  };
+
+  try {
+    const result = optimizeDelivery(sampleInputs);
+    console.log('Assignments:', JSON.stringify(result.assignments.map(a => ({
+      driver: a.driver.id,
+      order: a.order.id,
+      score: a.assignmentScore.toFixed(2),
+      distance: a.distance,
+      eta: a.eta
+    })), null, 2));
+    console.log('Summary:', result.summary);
+    console.log('Demo complete! (See tests/ for more cases)');
+  } catch (error) {
+    console.error('Demo failed:', error.message);
+  }
 }

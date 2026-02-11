@@ -3,11 +3,11 @@
 A Node.js utility library that helps optimize delivery planning. It takes drivers, delivery orders, and a road network graph as input and returns basic driver-to-order assignments along with fastest route and ETA estimates.
 
 ## Features
-- Accepts JSON input for drivers, orders, and road network graph
-- Basic greedy driver-to-order assignment
-- Mock route calculation and ETA estimation (ready for advanced algorithms)
-- Input validation
-- Simple and extensible structure
+- Accepts JSON input for drivers (incl. shiftEndTime), orders (incl. deadlineTime), and road network graph
+- Phase 1: Distance-aware greedy assignment (nearest driver by shortest path, capacity-aware, score based on dist+prio)
+- Real shortest-path distance/ETA calc (Dijkstra-based)
+- Strict input validation + immutability
+- Unit tests + working demo
 
 ## Installation
 ```bash
@@ -26,15 +26,15 @@ npm install
 ```javascript
 const { optimizeDelivery } = require('route-optimisation-engine');
 
-// Sample input JSON
+// Sample input JSON (includes new fields: shiftEndTime, deadlineTime)
 const inputs = {
   drivers: [
-    { id: 'd1', name: 'Alice', currentLocation: 'depot', capacity: 100 },
-    { id: 'd2', name: 'Bob', currentLocation: 'depot', capacity: 80 }
+    { id: 'd1', name: 'Alice', currentLocation: 'depot', capacity: 100, shiftEndTime: '2024-12-31T18:00:00Z' },
+    { id: 'd2', name: 'Bob', currentLocation: 'depot', capacity: 80, shiftEndTime: '2024-12-31T17:00:00Z' }
   ],
   orders: [
-    { id: 'o1', destination: 'locA', priority: 1, size: 20 },
-    { id: 'o2', destination: 'locB', priority: 2, size: 15 }
+    { id: 'o1', destination: 'locA', priority: 1, size: 20, deadlineTime: '2024-12-31T16:00:00Z' },
+    { id: 'o2', destination: 'locB', priority: 2, size: 15, deadlineTime: '2024-12-31T15:00:00Z' }
   ],
   graph: {
     depot: { locA: 10, locB: 25 },
