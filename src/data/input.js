@@ -32,8 +32,9 @@ function loadDrivers(drivers) {
     currentLocation: driver.currentLocation || 'depot',
     // capacity: NO default - strictly required and validated upstream
     availability: driver.availability !== undefined ? driver.availability : true,
-    // New field: shiftEndTime (optional, passed through; validated upstream if present)
+    // New field: shiftEndTime (optional; pre-parse to Date once for perf in assignment loop)
     shiftEndTime: driver.shiftEndTime,
+    parsedShiftEnd: driver.shiftEndTime ? new Date(driver.shiftEndTime) : null,
     ...driver // spread after to preserve original values (including shiftEndTime)
   }));
 }

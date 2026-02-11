@@ -150,10 +150,10 @@ function assignDriversToOrders(drivers, orders, graph, routeCache = null) {
       const distance = pathResult.distance;
       if (distance === Infinity) continue;
 
-      // Compute ETA to check shiftEndTime constraint
+      // Compute ETA to check shiftEndTime constraint (use pre-parsed for perf)
       const etaMinutes = Math.round((distance / 30) * 60); // consistent speed
       const estimatedArrival = new Date(Date.now() + etaMinutes * 60 * 1000);
-      const shiftEnd = driver.shiftEndTime ? new Date(driver.shiftEndTime) : null;
+      const shiftEnd = driver.parsedShiftEnd; // pre-parsed in loader
       if (shiftEnd && estimatedArrival > shiftEnd) continue; // cannot assign if exceeds shift
 
       // Updated scoring: distance + etaFactor + timeWindowPenalty - priorityBonus (lower better)
