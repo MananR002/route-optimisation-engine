@@ -253,5 +253,41 @@ describe('Input Validation and Reliability', () => {
         expect(typeof ass.assignmentScore).toBe('number');
       });
     });
+
+    // Large dataset test for perf/score validation (20 items)
+    test('handles large dataset (20 drivers/orders) with valid scores/outputs', () => {
+      const largeInputs = {
+        drivers: Array.from({ length: 20 }, (_, i) => ({
+          id: `d${i + 1}`,
+          capacity: 100,
+          currentLocation: i % 2 === 0 ? 'depot' : 'locA',
+          shiftEndTime: new Date(Date.now() + (3 + i % 5) * 60 * 60 * 1000).toISOString()
+        })),
+        orders: Array.from({ length: 20 }, (_, i) => ({
+          id: `o${i + 1}`,
+          destination: ['locA', 'locB', 'locC'][i % 3],
+          priority: (i % 3) + 1,
+          size: 10 + (i % 20),
+          deadlineTime: new Date(Date.now() + (2 + i % 4) * 60 * 60 * 1000).toISOString()
+        })),
+        graph: getValidInputs().graph // reuse base graph
+      };
+      
+      const start = Date.now();
+      const preparedD = loadDrivers(largeInputs.drivers);
+      const preparedO = loadOrders(largeInputs.orders);
+      const assignments = assignDriversToOrders(preparedD, preparedO, largeInputs.graph, null);
+      
+      const durationMs = Date.now() - start;
+      expect(assignments.length).toBeGreaterThan(10); // most assigned
+      expect(durationMs).toBeLessThan(100); // perf <100ms
+      
+      // Score validation: numbers, reasonable range
+      assignments.forEach(ass => {
+        expect(typeof ass.assignmentScore).toBe('number');
+        expect(ass.assignmentScore).toBeLessThan(100); // bounded
+        expect(ass.route.length).toBeGreaterThan(0);
+      });
+    });
   });
 });

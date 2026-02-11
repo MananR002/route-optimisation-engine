@@ -61,10 +61,11 @@ try {
     {
       "driver": { ... },
       "order": { ... },
-      "assignmentScore": 1.0,
-      "route": ["depot", "locA"],
+      "assignmentScore": -6.0,  // updated formula (lower = better)
+      "route": ["depot", "locA"],  // full path from Dijkstra
       "distance": 10,
       "eta": 20,
+      "isUnreachable": false,
       "estimatedArrival": "..."
     }
   ],
@@ -72,10 +73,42 @@ try {
     "totalDrivers": 2,
     "totalOrders": 2,
     "assignedOrders": 2,
-    "averageETA": 20
+    "averageETA": 30,
+    "cacheHits": 3  // if useCache=true
   }
 }
 ```
+
+## API Reference
+
+### `optimizeDelivery(inputs, config?)`
+Main entrypoint. Validates, assigns drivers greedily (with constraints), computes routes/ETAs.
+
+**Params**:
+- `inputs` (object): `{ drivers: [], orders: [], graph: {} }`
+- `config` (optional object): `{ useCache: boolean }` - enables path cache.
+
+**Example** (see Quick Start above; add `{ useCache: true }` for perf).
+
+**Returns**: `{ assignments: [], summary: { ... } }`
+
+### `calculateShortestPath(graph, start, end, cache?)`
+Core Dijkstra with MinHeap + path reconstruction + optional cache.
+
+**Example**:
+```js
+const { calculateShortestPath } = require('route-optimisation-engine');
+const path = calculateShortestPath(graph, 'depot', 'locC');
+// { distance: 40, path: ['depot', 'locC'] }
+```
+
+### Other Utilities
+- `validateInputs(inputs)`: Strict validation (throws `InputValidationError`).
+- `loadDrivers(drivers)` / `loadOrders(orders)` / `loadRoadGraph(graph)`: Prep + immutability + pre-parse (e.g., shiftEndTime -> Date).
+- `assignDriversToOrders(...)`: Greedy matching (internal).
+- `MinHeap`: Priority queue utility (exported for custom use).
+
+Full JSDoc in source.
 
 ## File Structure
 - `src/index.js` - Main entry point and optimizeDelivery function
